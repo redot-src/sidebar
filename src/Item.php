@@ -7,6 +7,11 @@ use Closure;
 class Item
 {
     /**
+     * The parent of the item.
+     */
+    public ?Item $parent = null;
+
+    /**
      * The title of the item.
      */
     public ?string $title = null;
@@ -27,6 +32,11 @@ class Item
     public ?string $url = null;
 
     /**
+     * Determine if the item is external.
+     */
+    public bool $external = false;
+
+    /**
      * The parameters of the item.
      */
     public array $parameters = [];
@@ -42,11 +52,16 @@ class Item
     public bool|Closure $hidden = false;
 
     /**
+     * Determine if the item is active.
+     */
+    public bool $active = false;
+
+    /**
      * Create a new item instance.
      */
     public static function make(): static
     {
-        return new static();
+        return new static;
     }
 
     /**
@@ -91,11 +106,26 @@ class Item
     }
 
     /**
+     * Set the external status of the item.
+     */
+    public function external(bool $external): self
+    {
+        $this->external = $external;
+
+        return $this;
+    }
+
+    /**
      * Set the children of the item.
      */
     public function children(array $children): self
     {
         $this->children = $children;
+
+        // Assign the parent to each child.
+        foreach ($this->children as $child) {
+            $child->parent = $this;
+        }
 
         return $this;
     }

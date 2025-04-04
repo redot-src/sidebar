@@ -2,12 +2,19 @@
 
 namespace Redot\Sidebar;
 
+use Illuminate\Support\Arr;
+
 class Sidebar
 {
     /**
      * The items of the sidebar.
      */
     public array $items = [];
+
+    /**
+     * Active items.
+     */
+    public array $activeItems = [];
 
     /**
      * Create a new sidebar instance.
@@ -52,6 +59,82 @@ class Sidebar
      */
     public function getItems(): array
     {
-        return $this->items;
+        $items = [];
+
+        foreach ($this->items as $item) {
+            $item = $this->prepareItem($item);
+
+            if ($item !== false) {
+                $items[] = $item;
+            }
+        }
+
+        foreach ($this->activeItems as &$current) {
+            foreach ($this->activeItems as $other) {
+                if ($current !== $other && request()->routeIs($other->route)) {
+                    $current->active = false;
+                }
+            }
+        }
+
+        // Reset the active items.
+        $this->activeItems = array_filter($this->activeItems, fn ($item) => $item->active);
+
+        // Add active to the active item parent
+        foreach ($this->activeItems as $item) {
+            if (isset($item->parent)) {
+                $item->parent->active = true;
+            }
+        }
+
+        return $items;
+    }
+
+    /**
+     * Prepare an item for display.
+     */
+    protected function prepareItem(Item $item)
+    {
+        if ($item->route && ! route_allowed($item->route)) {
+            return false;
+        }
+
+        if (is_callable($item->hidden) ? call_user_func($item->hidden, current_admin()) : $item->hidden) {
+            return false;
+        }
+
+        if (! $item->url) {
+            $item->url = $item->route ? route($item->route, $item->parameters) : '#';
+        }
+
+        // Set the active status of the item.
+        $item->active = $item->isActive();
+
+        if ($item->active) {
+            $this->activeItems[] = $item;
+        }
+
+        if (count($item->children) > 0) {
+            // Recursively prepare each child item.
+            $item->children = array_map(fn ($child) => $this->prepareItem($child), $item->children);
+
+            // Filter out any false values from the children array.
+            $item->children = array_filter($item->children, fn ($child) => $child !== false);
+            $item->children = array_values($item->children);
+
+            if (count($item->children) === 0) {
+                return false;
+            }
+        }
+
+        return $item;
+    }
+
+    /**
+     * Get the active item.
+     */
+    public function getActiveItem(): ?Item
+    {
+        return Arr::first($this->activeItems);
     }
 }
