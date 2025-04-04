@@ -71,7 +71,15 @@ class Sidebar
 
         foreach ($this->activeItems as &$current) {
             foreach ($this->activeItems as $other) {
-                if ($current !== $other && request()->routeIs($other->route)) {
+                if ($current === $other) {
+                    continue;
+                }
+
+                if (request()->routeIs($other->route)) {
+                    $current->active = false;
+                }
+
+                if (strlen($other->route) > strlen($current->route)) {
                     $current->active = false;
                 }
             }
